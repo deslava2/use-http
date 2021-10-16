@@ -66,7 +66,7 @@ function useFetch<TData = any>(...args: UseFetchArgs): UseFetch<TData> {
 
   const makeFetch = useDeepCallback((method: HTTPMethod): FetchData<TData> => {
 
-    const doFetch = async (routeOrBody?: RouteOrBody, body?: UFBody): Promise<any> => {
+    const doFetch = async (routeOrBody?: RouteOrBody, body?: UFBody, optionsTemp?: any): Promise<any> => {
       if (isServer) return // for now, we don't do anything on the server
       controller.current = new AbortController()
       controller.current.signal.onabort = onAbort
@@ -105,7 +105,7 @@ function useFetch<TData = any>(...args: UseFetchArgs): UseFetch<TData> {
         if (response.isCached && cachePolicy === CACHE_FIRST) {
           newRes = response.cached as Response
         } else {
-          newRes = (await fetch(url, options)).clone()
+          newRes = (await fetch(url, {...options, ...optionsTemp})).clone()
         }
         res.current = newRes.clone()
 
@@ -127,7 +127,7 @@ function useFetch<TData = any>(...args: UseFetchArgs): UseFetch<TData> {
         ) && retries > 0 && retries > attempt.current
 
         if (shouldRetry) {
-          const theData = await retry(opts, routeOrBody, body)
+          const theData = await retry(opts, routeOrBody, body, optionsTemp)
           return theData
         }
 
@@ -148,7 +148,7 @@ function useFetch<TData = any>(...args: UseFetchArgs): UseFetch<TData> {
         ) && retries > 0 && retries > attempt.current
 
         if (shouldRetry) {
-          const theData = await retry(opts, routeOrBody, body)
+          const theData = await retry(opts, routeOrBody, body, optionsTemp)
           return theData
         }
         if (err.name !== 'AbortError') {
@@ -169,14 +169,14 @@ function useFetch<TData = any>(...args: UseFetchArgs): UseFetch<TData> {
       return data.current
     } // end of doFetch()
 
-    const retry = async (opts: RetryOpts, routeOrBody?: RouteOrBody, body?: UFBody) => {
+    const retry = async (opts: RetryOpts, routeOrBody?: RouteOrBody, body?: UFBody, optionsTemp?: any) => {
       const delay = (isFunction(retryDelay) ? (retryDelay as Function)(opts) : retryDelay) as number
       if (!(Number.isInteger(delay) && delay >= 0)) {
         console.error('retryDelay must be a number >= 0! If you\'re using it as a function, it must also return a number >= 0.')
       }
       attempt.current++
       if (delay) await sleep(delay)
-      const d = await doFetch(routeOrBody, body)
+      const d = await doFetch(routeOrBody, body, optionsTemp)
       return d
     }
 
